@@ -114,23 +114,7 @@ const websites = [
 
   */
 
-  {
-    cat: "Economie",
-    name: 'zf.ro',
-    url: 'https://www.zf.ro',
-    // Selectorii pentru extragerea linkurilor din pagina principală
-    linkSelectors: [
-      'h2 a', 
-      'h3 a'
-    ],
-    // Selectorii pentru extragerea detaliilor din fiecare articol
-    detailSelectors: {
-      h1: 'h1.articleTitle',
-      img: 'div.articleThumb img',
-      intro: 'div.text-content p:first-of-type',
-      label: 'span.labelTag '
-    }
-  },  
+
 
   {
     cat: "Sănătate",
@@ -557,7 +541,24 @@ const websites = [
       intro: 'div.entry-content p:first-of-type',
       label: 'div.breadcrumbs__wrap div:nth-child(5) a'
     }
-  }
+  },
+  {
+    cat: "Economie",
+    name: 'zf.ro',
+    url: 'https://www.zf.ro',
+    // Selectorii pentru extragerea linkurilor din pagina principală
+    linkSelectors: [
+      'h2 a', 
+      'h3 a'
+    ],
+    // Selectorii pentru extragerea detaliilor din fiecare articol
+    detailSelectors: {
+      h1: 'h1.articleTitle',
+      img: 'div.articleThumb img',
+      intro: 'div.text-content p:first-of-type',
+      label: 'span.labelTag '
+    }
+  }  
 ];
 
 
@@ -695,7 +696,16 @@ export default async function handler(req, res) {
       SELECT id, source, text, href, imgSrc, intro, label, cat, \`date\`
       FROM articles
       WHERE \`date\` < DATE_SUB(NOW(), INTERVAL 24 HOUR)
+      ON DUPLICATE KEY UPDATE
+        source = VALUES(source),
+        text = VALUES(text),
+        imgSrc = VALUES(imgSrc),
+        intro = VALUES(intro),
+        label = VALUES(label),
+        cat = VALUES(cat),
+        \`date\` = VALUES(\`date\`)
     `);
+    
 
     // Șterge aceleași articole din "articles"
     await queryWithRetry(`
