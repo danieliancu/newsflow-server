@@ -16,6 +16,52 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
+// Funcție de normalizare pentru label (scalabilă: adaugă reguli noi după necesitate)
+// Această funcție aplică regulile de normalizare și apoi formatează rezultatul
+// astfel încât doar prima literă să fie majusculă, iar restul minuscule.
+function normalizeLabel(label) {
+  if (!label || label.trim() === "") return "Actualitate";
+  const rules = [
+    { pattern: /transporturi/i, value: "Auto" },
+    { pattern: /sport|stiri sport|sportz/i, value: "Sport" },
+    { pattern: /externe|știri externe|international|mapamond|politic extern|extern/i, value: "Extern" },
+    { pattern: /stiri politice|politic intern|politic|politica|politică/i, value: "Politică" },
+    { pattern: /articole|actualitate|știri românia|știri interne|știri|stiri actuale|news|fara categorie|făra categorie|fara categorie|stiri/i, value: "Actualitate" },
+    { pattern: /economie|Economic|macro|stiri economice|bani și afaceri|business|energie|financiar/i, value: "Economie" },
+    { pattern: /monden|stiri mondene|showbiz/i, value: "Monden" },
+    { pattern: /horoscop/i, value: "Horoscop" },
+    { pattern: /social|știri sociale/i, value: "Social" },
+    { pattern: /lifestyle|stil de viață/i, value: "Lifestyle" },
+    { pattern: /Sănătate și fitness|sanatate|health|Doctor de bine/i, value: "Sănătate" },
+    { pattern: /meteo|vremea/i, value: "Vremea" }, 
+    { pattern: /Sci-tech|High Tech|AI World|Stiri Stiinta|Techrider|Tehnologie|Digital/i, value: "Magazin și știință" },        
+    { pattern: /opinii|Opinii și analize|analize|OPINII|invitatii evz/i, value: "Opinii" },        
+    { pattern: /eveniment|evenimente/i, value: "Eveniment" },        
+    { pattern: /Timp liber|cultură și vacanțe|cultură-media|cultura/i, value: "Cultură" }, 
+    { pattern: /justitie|justiție/i, value: "Justiție" },  
+    { pattern: /Promo|Comunicate|publicitate|advertorial|advertoriale|Conținut plătit/i, value: "Publicitate" },  
+    { pattern: /alegeri prezidentiale 2025/i, value: "Alegeri prezidențiale 2025" },    
+    { pattern: /stiri diverse/i, value: "Știri diverse" },                    
+    { pattern: /stiri socante/i, value: "Știri șocante" },         
+    { pattern: /Bănci|Banci/i, value: "Bănci și asigurări" },
+    { pattern: /viața/i, value: "Viața" }, 
+    { pattern: /Muzică și filme/i, value: "Entertainment" },              
+    { pattern: /Imobiliare|Contructii & imobiliare|Real estate&construcții/i, value: "Construcții și imobiliare" },             
+
+
+
+
+  ];
+  let normalized = label;
+  for (const rule of rules) {
+    if (rule.pattern.test(label)) {
+      normalized = rule.value;
+      break;
+    }
+  }
+  // Formatăm rezultatul: doar prima literă mare, restul minuscule.
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1).toLowerCase();
+}
 
 // Funcție generică pentru interogări MySQL cu retry în caz de ECONNRESET
 async function queryWithRetry(query, values, retries = 3, delay = 2000) {
@@ -39,8 +85,6 @@ async function queryWithRetry(query, values, retries = 3, delay = 2000) {
   }
 }
 
-
-
 // Funcție simulată pentru inserarea unui articol în baza de date
 async function insertArticleIntoDB(article) {
   // Aici introdu logica de inserare în baza ta de date (ex: folosind un ORM)
@@ -58,6 +102,8 @@ const websites = [
   // desprecopii.ro/noutati
   // viva
   // agrobiznes
+  // europalibera
+  // aktual24
  
 
 /*
@@ -113,8 +159,6 @@ const websites = [
   },  
 
   */
-
-
 
   {
     cat: "Sănătate",
@@ -213,7 +257,6 @@ const websites = [
       label: 'div.breadcrumbs__wrap div.breadcrumbs__item:nth-of-type(5) a'
     }
   }, 
-  
   {
     cat: "Actualitate",
     name: 'pressone.ro',
@@ -302,7 +345,7 @@ const websites = [
     linkSelectors: [
       'h3.post-title a',
       'h2.post-title a', 
-      'h1.post-title a',            
+      'h1.post-title a'
     ],
     // Selectorii pentru extragerea detaliilor din fiecare articol
     detailSelectors: {
@@ -551,7 +594,6 @@ const websites = [
       'h2 a', 
       'h3 a'
     ],
-    // Selectorii pentru extragerea detaliilor din fiecare articol
     detailSelectors: {
       h1: 'h1.articleTitle',
       img: 'div.articleThumb img',
@@ -560,7 +602,6 @@ const websites = [
     }
   }  
 ];
-
 
 // Funcție care procesează un articol (link) folosind o pagină nouă
 async function scrapeArticle(browser, link, detailSelectors) {
@@ -593,6 +634,7 @@ async function scrapeArticle(browser, link, detailSelectors) {
         : getSrc(detailSelectors.img);
       const intro = getText(detailSelectors.intro);
       const labelText = getText(detailSelectors.label);
+      // Dacă labelText are mai mult de 3 cuvinte sau e gol, se folosește "Actualitate"
       const label = (!labelText || labelText.split(/\s+/).length > 3) ? "Actualitate" : labelText;
 
       return { h1, imgSrc, intro, label };
@@ -604,6 +646,9 @@ async function scrapeArticle(browser, link, detailSelectors) {
       console.warn(`Articolul ${link} a fost skip-uit din cauza lipsei de h1 sau imgSrc.`);
       return null;
     }
+    
+    // Normalizează label-ul înainte de a returna datele
+    data.label = normalizeLabel(data.label);
 
     return { link, ...data };
   } catch (err) {
@@ -613,11 +658,6 @@ async function scrapeArticle(browser, link, detailSelectors) {
     await page.close();
   }
 }
-
-
-
-
-
 
 // Funcție care extrage linkurile din pagina principală a website-ului și procesează articolele
 async function scrapeWebsite(browser, website) {
@@ -657,17 +697,30 @@ async function scrapeWebsite(browser, website) {
   links = links.filter(link => link.startsWith(website.url));
   console.log(`Am găsit ${links.length} linkuri valide pe ${website.name}.`);
 
-// Verificăm ce link-uri există deja în baza de date pentru a evita procesarea lor
-const existingRows = await queryWithRetry(
-  'SELECT href FROM articles WHERE href IN (?)',
-  [links]
-);
+  // Verificăm ce link-uri există deja în baza de date, în funcție de categorie
+  let existingRows;
+  if (website.cat === "Actualitate" || website.cat === "Sport") {
+    existingRows = await queryWithRetry(
+      `SELECT href FROM (
+          SELECT href FROM articles
+          UNION
+          SELECT href FROM archive
+        ) AS all_articles
+        WHERE href IN (?)`,
+      [links]
+    );
+  } else {
+    existingRows = await queryWithRetry(
+      'SELECT href FROM articles WHERE href IN (?)',
+      [links]
+    );
+  }
 
-const existingLinks = new Set(existingRows.map(row => row.href));
+  const existingLinks = new Set(existingRows.map(row => row.href));
 
-// Filtrăm link-urile, păstrând doar cele care nu există deja
-links = links.filter(link => !existingLinks.has(link));
-console.log(`După filtrare, rămân ${links.length} linkuri noi pe ${website.name}.`);  
+  // Filtrăm link-urile, păstrând doar cele care nu există deja
+  links = links.filter(link => !existingLinks.has(link));
+  console.log(`După filtrare, rămân ${links.length} linkuri noi pe ${website.name}.`);  
 
   // Procesăm linkurile în paralel, limitând concurența (ex.: 5 pagini simultan)
   const limit = pLimit(5);
@@ -680,13 +733,9 @@ console.log(`După filtrare, rămân ${links.length} linkuri noi pe ${website.na
   return results;
 }
 
-
-
-
 // Endpoint API care lansează procesul de scraping
 export default async function handler(req, res) {
   try {
-
     // 1. Mutare articole mai vechi de 24h din "articles" în "archive"
     console.log('Mutam articolele mai vechi de 24h în tabela "archive"...');
 
@@ -706,7 +755,6 @@ export default async function handler(req, res) {
         \`date\` = VALUES(\`date\`)
     `);
     
-
     // Șterge aceleași articole din "articles"
     await queryWithRetry(`
       DELETE FROM articles
@@ -714,7 +762,6 @@ export default async function handler(req, res) {
     `);
 
     console.log('Articolele vechi au fost mutate în "archive".');
-
 
     // 2. Lansăm procesul de scraping
     const browser = await puppeteer.launch({
@@ -760,7 +807,7 @@ export default async function handler(req, res) {
               article.link,      // href
               article.imgSrc,    // imgSrc
               article.intro,     // intro
-              article.label,     // label
+              article.label,     // label (normalizat)
               article.cat || website.cat // categoria; poți adapta după necesitate
             ]
           );
