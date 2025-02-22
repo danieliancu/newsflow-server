@@ -46,6 +46,7 @@ function normalizeLabel(label) {
     { pattern: /Bănci|Banci/i, value: "Bănci și asigurări" },
     { pattern: /viața/i, value: "Viața" }, 
     { pattern: /Muzică și filme/i, value: "Entertainment" },              
+    { pattern: /Alegeri prezidenţiale 2025/i, value: "Alegeri prezidențiale" },              
     { pattern: /Imobiliare|Contructii & imobiliare|Real estate&construcții/i, value: "Construcții și imobiliare" },             
 
 
