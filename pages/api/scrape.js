@@ -697,8 +697,12 @@ async function scrapeWebsite(browser, website) {
   // Filtrăm linkurile: trebuie să înceapă cu website.url
   links = links.filter(link => link.startsWith(website.url));
   console.log(`Am găsit ${links.length} linkuri valide pe ${website.name}.`);
-
-  // Verificăm ce link-uri există deja în baza de date, în funcție de categorie
+  
+  if (links.length === 0) {
+    console.log(`Nu s-au găsit linkuri noi pentru ${website.name}, se sare peste verificarea în DB.`);
+    return [];
+  }
+  
   let existingRows;
   if (website.cat === "Actualitate" || website.cat === "Sport") {
     existingRows = await queryWithRetry(
@@ -716,6 +720,7 @@ async function scrapeWebsite(browser, website) {
       [links]
     );
   }
+  
 
   const existingLinks = new Set(existingRows.map(row => row.href));
 
