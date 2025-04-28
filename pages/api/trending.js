@@ -39,6 +39,10 @@ function matchesTrend(keyword, articleText) {
   return words.every(word => textWords.includes(word));
 }
 
+
+
+
+
 async function getTrendingMatches() {
   const browser = await puppeteer.launch({
     headless: true,
@@ -53,13 +57,27 @@ async function getTrendingMatches() {
 
   await page.waitForSelector('div.mZ3RIc', { timeout: 15000 }).catch(() => null);
 
-  const keywords = await page.evaluate(() =>
+  let keywords = await page.evaluate(() =>
     Array.from(document.querySelectorAll('div.mZ3RIc'))
       .map(el => el.textContent.trim())
       .filter(Boolean)
   );
 
   await browser.close();
+
+  // 🔥 Aplicăm noul filtru
+  keywords = keywords.filter(keyword => {
+    const words = keyword.split(/\s+/);
+    if (words.length > 2) {
+      // Dacă toate cuvintele sunt de maxim 2 litere, ignorăm
+      const allShort = words.every(word => word.length <= 2);
+      if (allShort) {
+        console.log(`⚠️ Ignorat keyword '${keyword}' (toate cuvintele prea scurte)`);
+        return false;
+      }
+    }
+    return true;
+  });
 
   const response = await fetch('https://www.newsflow.ro/api/articles');
   const news = (await response.json()).data || [];
@@ -73,7 +91,7 @@ async function getTrendingMatches() {
 
     if (matchedArticles.length > 0) {
       const firstMatch = matchedArticles[0];
-      const relatedMatches = matchedArticles.slice(1); // toate celelalte
+      const relatedMatches = matchedArticles.slice(1);
 
       matches.push({
         keyword,
@@ -109,6 +127,11 @@ async function getTrendingMatches() {
 
   return { matches };
 }
+
+
+
+
+
 
 export default async function handler(req, res) {
   try {
