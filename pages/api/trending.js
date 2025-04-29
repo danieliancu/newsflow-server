@@ -1,5 +1,3 @@
-// pages/api/trending.js
-
 import mysql from "mysql2/promise";
 import puppeteer from "puppeteer";
 import cron from "node-cron";
@@ -39,10 +37,6 @@ function matchesTrend(keyword, articleText) {
   return words.every(word => textWords.includes(word));
 }
 
-
-
-
-
 async function getTrendingMatches() {
   const browser = await puppeteer.launch({
     headless: true,
@@ -65,17 +59,34 @@ async function getTrendingMatches() {
 
   await browser.close();
 
-  // 🔥 Aplicăm noul filtru
+  // 🔥 Aplicăm filtrul cerut
   keywords = keywords.filter(keyword => {
-    const words = keyword.split(/\s+/);
-    if (words.length > 2) {
-      // Dacă toate cuvintele sunt de maxim 2 litere, ignorăm
-      const allShort = words.every(word => word.length <= 2);
-      if (allShort) {
-        console.log(`⚠️ Ignorat keyword '${keyword}' (toate cuvintele prea scurte)`);
-        return false;
-      }
+    const normalizedKeyword = normalizeText(keyword);
+    const words = normalizedKeyword.split(/\s+/);
+
+    // Regex pentru detectare dată (ex: 29 aprilie, 1 mai, luni 30 aprilie)
+    const datePattern = /\b(\d{1,2})\s+(ianuarie|februarie|martie|aprilie|mai|iunie|iulie|august|septembrie|octombrie|noiembrie|decembrie)\b/;
+    const dayPattern = /\b(luni|marti|miercuri|joi|vineri|sambata|duminica)\b/;
+
+    const containsDate = datePattern.test(normalizedKeyword);
+    const containsDay = dayPattern.test(normalizedKeyword);
+
+    if (containsDate && words.length <= 2) {
+      console.log(`⚠️ Ignorat keyword '${keyword}' (doar dată, fără context)`);
+      return false;
     }
+
+    if (containsDay && containsDate && words.length <= 3) {
+      console.log(`⚠️ Ignorat keyword '${keyword}' (zi + dată, fără context)`);
+      return false;
+    }
+
+    const allShort = words.length > 2 ? words.every(word => word.length <= 2) : false;
+    if (allShort) {
+      console.log(`⚠️ Ignorat keyword '${keyword}' (toate cuvintele prea scurte)`);
+      return false;
+    }
+
     return true;
   });
 
@@ -127,11 +138,6 @@ async function getTrendingMatches() {
 
   return { matches };
 }
-
-
-
-
-
 
 export default async function handler(req, res) {
   try {
